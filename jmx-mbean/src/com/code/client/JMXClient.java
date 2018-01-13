@@ -82,9 +82,6 @@ public class JMXClient {
 
 		if (commandLine.hasOption('n')) {
 			name = commandLine.getOptionValues('n');
-			for (String string : name) {
-				System.out.println(string);
-			}
 		}
 		/**
 		 * 连接远程地址访问拼接
@@ -112,44 +109,54 @@ public class JMXClient {
 		/**
 		 * objectName 信息检索
 		 */
-			for (int j = 0; j < name.length; j++) {
 
-				JSONObject jsonObject = new JSONObject();
-				List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+		JSONObject jsonObject = new JSONObject();
+		MBeanServerConnection connection = connector.getMBeanServerConnection();
+		ObjectName objectName = new ObjectName(param);
+		MBeanInfo mBeanInfo = connection.getMBeanInfo(objectName);
+		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
 
-				MBeanServerConnection connection = connector.getMBeanServerConnection();
-				ObjectName objectName = new ObjectName(param);
-				MBeanInfo mBeanInfo = connection.getMBeanInfo(objectName);
-				MBeanAttributeInfo[] mBeanAttrbute = mBeanInfo.getAttributes();
+		MBeanAttributeInfo[] mBeanAttrbute = mBeanInfo.getAttributes();
+		if (name.length > 0) {
+			for (int i = 0; i < name.length; i++) {
 				for (MBeanAttributeInfo attr : mBeanAttrbute) {
 					Object value = null;
 					try {
-						if (name[j].isEmpty()) {
+						if (attr.getName().equals(name[i])) {
 							Map<String, Object> map = new LinkedHashMap<String, Object>();
-							value = attr.isReadable() ? connection.getAttribute(objectName, attr.getName()) : "";
-							if (value.toString().isEmpty() || value.toString().length() > maxValue) {
+							value = attr.isReadable() ? connection.getAttribute(objectName, name[i]) : "";
+							if (value.toString().isEmpty()) {
 								break;
 							} else {
 								map.put("" + attr.getName() + "", String.valueOf(value));
 								list.add(map);
-							}
-						} else if (attr.getName().equals(name[j])) {
-							Map<String, Object> map = new LinkedHashMap<String, Object>();
-							value = attr.isReadable() ? connection.getAttribute(objectName, name[j]) : "";
-							if (value.toString().isEmpty() || value.toString().length() > maxValue) {
-								break;
-							} else {
-								map.put("" + attr.getName() + "", String.valueOf(value));
-								list.add(map);
+								jsonObject.put("data", list);
 							}
 						}
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
 				}
-				jsonObject.put("data", list);
-				System.out.println(jsonObject);
 			}
+		} else {
+			for (MBeanAttributeInfo attr : mBeanAttrbute) {
+				Object value = null;
+				try {
+					Map<String, Object> map = new LinkedHashMap<String, Object>();
+					value = attr.isReadable() ? connection.getAttribute(objectName, attr.getName()) : "";
+					if (value.toString().isEmpty() || value.toString().length() > maxValue) {
+						break;
+					} else {
+						map.put("" + attr.getName() + "", String.valueOf(value));
+						list.add(map);
+						jsonObject.put("data", list);
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		System.out.println(jsonObject);
 		connector.close();
 	}
 }
