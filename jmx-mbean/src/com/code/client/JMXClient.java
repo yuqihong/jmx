@@ -42,13 +42,13 @@ public class JMXClient {
 
 		CommandLineParser parser = new DefaultParser();
 		Options options = new Options();
-		options.addOption("u", "url", true, "import url:远程端口 \t(1)-u rmi://host:port \t(2)-u jmxmp://host:port");
-		options.addOption("z", "param", true, "param:参数路径(允许单条路径)，有空格在两端加引号表示; \t示例(1):-z java.lang:type=Threading 表示查询线程信息"
-				+ "\t示例(2):“-z java.lang:type=MemoryPool,name=PS Old Gen” ");
+		options.addOption("u", "url", true, "url:远程端口 \t(1)-u rmi://host:port \t(2)-u jmxmp://host:port");
+		options.addOption("z", "param", true, "param:参数路径(允许单条路径)，有空格在两端加引号表示; \t用法：(1):-z java.lang:type=Threading 表示查询线程信息"
+				+ "\t(2):\"-z java.lang:type=MemoryPool,name=PS Old Gen\" ");
 		options.addOption("h", "help", false, "-h:帮助");
-		options.addOption("n", "name", true, "name:需要查询的属性名称(允许多个属性) \t示例(1):-n ThreadCount");
+		options.addOption("n", "name", true, "name:需要查询的属性名称(允许多个属性) \t用法：(1):-n ThreadCount");
 
-		String formatstr = "[-u/--url][-z/--param][-h/--help][-n/--name] DirectoryName";
+		String formatstr = "[-u/--url][-z/--param][-n/--name][-h/--help] DirectoryName";
 		HelpFormatter formatter = new HelpFormatter();
 
 		CommandLine commandLine = null;
@@ -134,8 +134,8 @@ public class JMXClient {
 							value = attr.isReadable() ? connection.getAttribute(objectName, attr.getName().equals(name[i]) ? name[i] : attr.getName()) : "";
 							value = String.valueOf(value);
 							if (value.toString().isEmpty() || (value.toString().indexOf("[") >= 0 && value.toString().indexOf("@") >= 0)) {
-								System.err.println("输入有误！");
-								return;
+								System.err.println( "查询有误:" + attr.getName());
+								break;
 							} else {
 								map.put("" + attr.getName() + "", value);
 								list.add(map);
@@ -155,7 +155,6 @@ public class JMXClient {
 					value = attr.isReadable() ? connection.getAttribute(objectName, attr.getName()) : "";
 					value = String.valueOf(value);
 					if (value.toString().isEmpty() || value.toString().length() > maxValue) {
-						return;
 					} else {
 						map.put("" + attr.getName() + "", value);
 						list.add(map);
@@ -169,7 +168,7 @@ public class JMXClient {
 		if (!jsonObject.isEmpty()) {
 			System.out.println(jsonObject);
 		} else {
-			System.err.println("空值");
+			System.err.println("查询为空！");
 		}
 		connector.close();
 	}
