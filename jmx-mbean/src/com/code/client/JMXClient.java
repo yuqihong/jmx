@@ -116,6 +116,7 @@ public class JMXClient {
 		 */
 		JSONObject jsonObject = new JSONObject();
 		MBeanServerConnection connection = connector.getMBeanServerConnection();
+		
 		ObjectName objectName = new ObjectName(param);
 		MBeanInfo mBeanInfo = connection.getMBeanInfo(objectName);
 		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
