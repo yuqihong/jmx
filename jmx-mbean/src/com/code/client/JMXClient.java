@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.management.AttributeNotFoundException;
 import javax.management.InstanceNotFoundException;
@@ -40,13 +42,13 @@ public class JMXClient {
 
 		CommandLineParser parser = new DefaultParser();
 		Options options = new Options();
-		options.addOption("u", "url", true, "import url:远程端口 \t(1)rmi://host:port \t(2)jmxmp://host:port");
-		options.addOption("z", "param", true, "param:参数 有空格在两端加引号表示; \t示例(1):java.lang:type=Threading 表示查询线程信息"
-				+ "\t示例(2):“java.lang:type=MemoryPool,name=PS Old Gen” ");
-		options.addOption("h", "help", false, "print help:帮助");
-		options.addOption("n", "name", true, "属性名称");
+		options.addOption("u", "url", true, "import url:远程端口 \t(1)-u rmi://host:port \t(2)-u jmxmp://host:port");
+		options.addOption("z", "param", true, "param:参数路径(允许单条路径)，有空格在两端加引号表示; \t示例(1):-z java.lang:type=Threading 表示查询线程信息"
+				+ "\t示例(2):“-z java.lang:type=MemoryPool,name=PS Old Gen” ");
+		options.addOption("h", "help", false, "-h:帮助");
+		options.addOption("n", "name", true, "name:需要查询的属性名称(允许多个属性) \t示例(1):-n ThreadCount");
 
-		String formatstr = "[-u/--url][-z/--param][-h/--help][-m/--name] DirectoryName";
+		String formatstr = "[-u/--url][-z/--param][-h/--help][-n/--name] DirectoryName";
 		HelpFormatter formatter = new HelpFormatter();
 
 		CommandLine commandLine = null;
@@ -80,16 +82,19 @@ public class JMXClient {
 			param = commandLine.getOptionValue('z');
 		}
 
+		/**
+		 * 值：-n/--name
+		 */
 		if (commandLine.hasOption('n')) {
 			name = commandLine.getOptionValues('n');
 		}
+
 		/**
 		 * 连接远程地址访问拼接
 		 */
-		// String url = "service:jmx:rmi:///jndi/rmi://" + host + ":" + port + "/" +
-		// DOMA ; //rmi连接
-		// String url = "service:jmx:jmxmp://" + host + ":" + port + "/" + DOMA; //
-		// jmxmp连接
+		// String url = "service:jmx:rmi:///jndi/rmi://" + host + ":" + port ; //rmi连接
+		// String url = "service:jmx:jmxmp://" + host + ":" + port; // jmxmp连接
+
 		if (url.indexOf("rmi") != -1 || url.indexOf("RMI") != -1) {
 			url = "service:jmx:rmi:///jndi/" + url;
 		}
@@ -107,9 +112,8 @@ public class JMXClient {
 		}
 
 		/**
-		 * objectName 信息检索
+		 * objectName 信息查询
 		 */
-
 		JSONObject jsonObject = new JSONObject();
 		MBeanServerConnection connection = connector.getMBeanServerConnection();
 		ObjectName objectName = new ObjectName(param);
@@ -122,13 +126,18 @@ public class JMXClient {
 				for (MBeanAttributeInfo attr : mBeanAttrbute) {
 					Object value = null;
 					try {
-						if (attr.getName().equals(name[i])) {
+						Pattern pattern = Pattern.compile("^" + name[i] + ".*", Pattern.CASE_INSENSITIVE);
+						Matcher matcher = pattern.matcher(attr.getName());
+
+						if (name[i].equals(attr.getName()) || matcher.find()) {
 							Map<String, Object> map = new LinkedHashMap<String, Object>();
-							value = attr.isReadable() ? connection.getAttribute(objectName, name[i]) : "";
-							if (value.toString().isEmpty()) {
-								break;
+							value = attr.isReadable() ? connection.getAttribute(objectName, attr.getName().equals(name[i]) ? name[i] : attr.getName()) : "";
+							value = String.valueOf(value);
+							if (value.toString().isEmpty() || (value.toString().indexOf("[") >= 0 && value.toString().indexOf("@") >= 0)) {
+								System.err.println("输入有误！");
+								return;
 							} else {
-								map.put("" + attr.getName() + "", String.valueOf(value));
+								map.put("" + attr.getName() + "", value);
 								list.add(map);
 								jsonObject.put("data", list);
 							}
@@ -144,10 +153,11 @@ public class JMXClient {
 				try {
 					Map<String, Object> map = new LinkedHashMap<String, Object>();
 					value = attr.isReadable() ? connection.getAttribute(objectName, attr.getName()) : "";
+					value = String.valueOf(value);
 					if (value.toString().isEmpty() || value.toString().length() > maxValue) {
-						break;
+						return;
 					} else {
-						map.put("" + attr.getName() + "", String.valueOf(value));
+						map.put("" + attr.getName() + "", value);
 						list.add(map);
 						jsonObject.put("data", list);
 					}
@@ -156,7 +166,11 @@ public class JMXClient {
 				}
 			}
 		}
-		System.out.println(jsonObject);
+		if (!jsonObject.isEmpty()) {
+			System.out.println(jsonObject);
+		} else {
+			System.err.println("空值");
+		}
 		connector.close();
 	}
 }
