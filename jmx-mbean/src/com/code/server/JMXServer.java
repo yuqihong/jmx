@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.rmi.server.RMISocketFactory;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -51,7 +50,7 @@ public class JMXServer {
 		server.registerMBean(connectorServer, new ObjectName(PACK + "JMXConnectorServer"));
 
 		connectorServer.start();
-
+        System.out.println("success");
 	}
 
 }
